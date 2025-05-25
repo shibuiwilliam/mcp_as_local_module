@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from src.logger import make_logger
-from src.mcp_server.server import MCPServerModule
+from src.mcp_server.server import Gender, MCPServerModule
 
 logger = make_logger(__name__)
 
@@ -50,6 +50,18 @@ class WebApplication:
                 raise HTTPException(status_code=404, detail=result["error"])
             return result
 
+        @self.app.post("/api/users/batch")
+        async def get_users_batch(user_ids: list[str]):
+            """複数ユーザー取得のREST API - 内部的にMCPを使用"""
+            result = await self.mcp_server.execute_tool("get_users", {"user_ids": user_ids})
+            return result
+
+        @self.app.get("/api/users/gender/{gender}")
+        async def get_users_by_gender_rest(gender: Gender):
+            """性別によるユーザー取得のREST API - 内部的にMCPを使用"""
+            result = await self.mcp_server.execute_tool("get_users_by_gender", {"gender": gender.value})
+            return result
+
         @self.app.get("/api/users")
         async def list_users_rest():
             """従来のREST API - 内部的にMCPを使用"""
@@ -59,7 +71,9 @@ class WebApplication:
         @self.app.post("/api/users")
         async def create_user_rest(user: UserCreateRequest):
             """従来のREST API - 内部的にMCPを使用"""
-            result = await self.mcp_server.execute_tool("create_user", {"name": user.name, "email": user.email})
+            result = await self.mcp_server.execute_tool(
+                "create_user", {"name": user.name, "email": user.email, "gender": user.gender.value}
+            )
             if "error" in result:
                 raise HTTPException(status_code=400, detail=result["error"])
             return result
